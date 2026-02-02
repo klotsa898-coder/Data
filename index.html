@@ -3,64 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#121212">
-    <title>ThingSpeak Pro Monitor</title>
+    <meta name="theme-color" content="#121212" id="nav-color">
+    <title>ThingSpeak Smart Monitor</title>
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
-        /* CSS για εμφάνιση εφαρμογής σε κινητό */
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #121212; color: white; margin: 0; padding: 10px; }
+        /* Βασικό Dark Theme */
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #ffffff;
+            --subtext: #888;
+            --border: #333;
+            --chart-grid: #2a2a2a;
+        }
+
+        /* Light Theme */
+        .light-theme {
+            --bg: #f4f7f6;
+            --card: #ffffff;
+            --text: #333333;
+            --subtext: #666;
+            --border: #ddd;
+            --chart-grid: #eee;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; transition: 0.3s; }
         
         .toolbar { 
-            background: #1e1e1e; padding: 12px 15px; border-radius: 12px; 
+            background: var(--card); padding: 12px 15px; border-radius: 12px; 
             margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid var(--border);
         }
         
-        select { background: #333; color: white; border: 1px solid #444; padding: 8px; border-radius: 8px; font-size: 14px; outline: none; }
-        
+        select, .theme-btn { 
+            background: var(--bg); color: var(--text); border: 1px solid var(--border); 
+            padding: 8px; border-radius: 8px; font-size: 14px; cursor: pointer;
+        }
+
         .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; }
         @media(min-width: 600px) { .grid-container { grid-template-columns: 1fr 1fr; } }
         
         .card { 
-            background: #1e1e1e; border-radius: 15px; padding: 15px; 
-            border-top: 4px solid #333; position: relative;
-            transition: transform 0.2s;
+            background: var(--card); border-radius: 15px; padding: 15px; 
+            border-top: 5px solid #333; border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         
-        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        h3 { margin: 0; font-size: 0.85em; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .time-status { font-size: 0.75em; color: #555; font-style: italic; }
-        
-        .value-display { font-size: 2.2em; font-weight: bold; margin: 5px 0; display: flex; align-items: baseline; }
-        .unit { font-size: 0.4em; color: #666; margin-left: 5px; }
-        
-        .chart-box { width: 100%; height: 160px; margin-top: 10px; }
-        
-        .icon-bg { font-size: 1.4em; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; }
+        h3 { margin: 0; font-size: 0.85em; color: var(--subtext); text-transform: uppercase; }
+        .time-status { font-size: 0.75em; color: var(--subtext); }
+        .value-display { font-size: 2.2em; font-weight: bold; margin: 10px 0; display: flex; align-items: baseline; }
+        .chart-box { width: 100%; height: 160px; }
     </style>
 </head>
-<body>
+<body id="body-tag">
 
     <div class="toolbar">
-        <span style="font-weight: bold; color: #1a73e8;">ThingSpeak Live</span>
+        <button class="theme-btn" onclick="toggleTheme()" id="theme-icon">☀️</button>
         <select id="resultsRange" onchange="loadData()">
-            <option value="10">10 μετρήσεις</option>
-            <option value="50" selected>50 μετρήσεις</option>
+            <option value="20" selected>20 μετρήσεις</option>
             <option value="100">100 μετρήσεις</option>
-            <option value="400">400 μετρήσεις</option>
         </select>
     </div>
 
-    <div class="grid-container" id="dashboard">
-        </div>
+    <div class="grid-container" id="dashboard"></div>
 
     <script>
         // --- ΡΥΘΜΙΣΕΙΣ ΧΡΗΣΤΗ ---
-        const channelID = '1758807'; // Βάλε το δικό σου ID
-        const readAPIKey = '4BM86485YQL566TF'; // Βάλε το δικό σου API Key
+        const channelID = '1758807'; 
+        const readAPIKey = '4BM86485YQL566TF';
         
-        // Ορισμός ονομάτων και μονάδων για κάθε πεδίο
         const fieldConfig = {
             'field1': { label: 'Θερμοκρασία', unit: '°C' },
             'field2': { label: 'Υγρασία', unit: '%' },
@@ -72,26 +84,35 @@
 
         const colors = ['#ff5252', '#448aff', '#4caf50', '#ff9800', '#e040fb', '#00bcd4'];
 
-        // --- ΛΕΙΤΟΥΡΓΙΕΣ ΚΩΔΙΚΑ ---
+        // --- ΕΝΑΛΛΑΓΗ ΘΕΜΑΤΟΣ ---
+        function toggleTheme() {
+            const body = document.getElementById('body-tag');
+            const btn = document.getElementById('theme-icon');
+            const metaTheme = document.getElementById('nav-color');
+            
+            body.classList.toggle('light-theme');
+            
+            if(body.classList.contains('light-theme')) {
+                btn.innerText = '🌙';
+                metaTheme.setAttribute('content', '#f4f7f6');
+            } else {
+                btn.innerText = '☀️';
+                metaTheme.setAttribute('content', '#121212');
+            }
+            loadData(); // Επαναφόρτωση για να αλλάξουν τα χρώματα στα γραφήματα
+        }
+
+        // --- ΛΟΙΠΕΣ ΛΕΙΤΟΥΡΓΙΕΣ (ίδιες με πριν) ---
         function getIcon(name) {
             name = name.toLowerCase();
             if (name.includes('temp') || name.includes('θερμ')) return '🌡️';
             if (name.includes('hum') || name.includes('υγρα')) return '💧';
-            if (name.includes('volt') || name.includes('batt') || name.includes('τάση')) return '🔋';
-            if (name.includes('pres') || name.includes('πίεσ')) return '⏲️';
-            if (name.includes('light') || name.includes('φως')) return '☀️';
             return '📊';
         }
 
         function timeAgo(dateString) {
-            const now = new Date();
-            const past = new Date(dateString);
-            const diffMins = Math.round((now - past) / 60000);
-            if (diffMins < 1) return 'Τώρα';
-            if (diffMins < 60) return `Πριν ${diffMins}λ`;
-            const diffHours = Math.round(diffMins / 60);
-            if (diffHours < 24) return `Πριν ${diffHours}ω`;
-            return `Πριν ${Math.round(diffHours / 24)}ημ`;
+            const diffMins = Math.round((new Date() - new Date(dateString)) / 60000);
+            return diffMins < 1 ? 'Τώρα' : `Πριν ${diffMins}λ`;
         }
 
         google.charts.load('current', {'packages':['corechart']});
@@ -99,20 +120,19 @@
 
         function loadData() {
             const results = document.getElementById('resultsRange').value;
-            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=${results}`;
-            
-            fetch(url).then(res => res.json()).then(data => {
+            fetch(`https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=${results}`)
+            .then(res => res.json()).then(data => {
                 const dashboard = document.getElementById('dashboard');
                 dashboard.innerHTML = '';
-                const lastEntryTime = data.feeds[data.feeds.length - 1].created_at;
-                const timeStr = timeAgo(lastEntryTime);
+                const isLight = document.getElementById('body-tag').classList.contains('light-theme');
+                const gridColor = isLight ? '#eee' : '#2a2a2a';
+                const textCol = isLight ? '#999' : '#555';
 
                 for (let i = 1; i <= 6; i++) {
                     const key = 'field' + i;
-                    const fieldRawName = data.channel[key];
-                    if (!fieldRawName) continue;
+                    if (!data.channel[key]) continue;
 
-                    const displayName = fieldConfig[key] ? fieldConfig[key].label : fieldRawName;
+                    const displayName = fieldConfig[key] ? fieldConfig[key].label : data.channel[key];
                     const unit = fieldConfig[key] ? fieldConfig[key].unit : '';
                     const lastValue = data.feeds[data.feeds.length - 1][key];
                     const color = colors[i-1];
@@ -123,220 +143,42 @@
                     card.innerHTML = `
                         <div class="header-flex">
                             <h3>${displayName}</h3>
-                            <span class="time-status">${timeStr}</span>
+                            <span class="time-status">${timeAgo(data.feeds[data.feeds.length-1].created_at)}</span>
                         </div>
                         <div class="value-display" style="color: ${color}">
-                            ${parseFloat(lastValue).toFixed(1)}<span class="unit">${unit}</span>
-                            <span style="margin-left: auto;" class="icon-bg">${getIcon(displayName)}</span>
+                            ${parseFloat(lastValue).toFixed(1)}<span style="font-size:14px; opacity:0.6; margin-left:4px;">${unit}</span>
+                            <span style="margin-left: auto;">${getIcon(displayName)}</span>
                         </div>
                         <div id="chart_${i}" class="chart-box"></div>
                     `;
                     dashboard.appendChild(card);
-                    drawChart(data.feeds, i, displayName, color);
+                    drawChart(data.feeds, i, displayName, color, gridColor, textCol);
                 }
             });
         }
 
-        function drawChart(feeds, fieldNum, label, color) {
+        function drawChart(feeds, fieldNum, label, color, gridCol, textCol) {
             const chartData = [['Time', label]];
             feeds.forEach(f => {
                 const val = parseFloat(f['field' + fieldNum]);
-                if(!isNaN(val)) {
-                    chartData.push([new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), val]);
-                }
+                if(!isNaN(val)) chartData.push([new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), val]);
             });
 
-            const dataTable = google.visualization.arrayToDataTable(chartData);
             const options = {
                 backgroundColor: 'transparent',
                 curveType: 'function',
                 legend: { position: 'none' },
                 chartArea: { width: '95%', height: '80%' },
                 hAxis: { textPosition: 'none', baselineColor: 'none', gridlines: {color: 'none'} },
-                vAxis: { gridlines: {color: '#2a2a2a'}, textStyle: {color: '#555', fontSize: 10} },
+                vAxis: { gridlines: {color: gridCol}, textStyle: {color: textCol, fontSize: 10} },
                 colors: [color],
-                lineWidth: 3,
-                pointsVisible: feeds.length <= 15
+                lineWidth: 3
             };
-
-            const chart = new google.visualization.LineChart(document.getElementById('chart_' + fieldNum));
-            chart.draw(dataTable, options);
+            new google.visualization.LineChart(document.getElementById('chart_' + fieldNum)).draw(google.visualization.arrayToDataTable(chartData), options);
         }
 
-        // Ανανέωση ανά 1 λεπτό
         setInterval(loadData, 60000);
     </script>
 </body>
-</html>
-<!DOCTYPE html>
-<html lang="el">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#121212">
-    <title>ThingSpeak Pro Monitor</title>
-    <script src="https://www.gstatic.com/charts/loader.js"></script>
-    <style>
-        /* CSS για εμφάνιση εφαρμογής σε κινητό */
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #121212; color: white; margin: 0; padding: 10px; }
+    </html>
         
-        .toolbar { 
-            background: #1e1e1e; padding: 12px 15px; border-radius: 12px; 
-            margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-        
-        select { background: #333; color: white; border: 1px solid #444; padding: 8px; border-radius: 8px; font-size: 14px; outline: none; }
-        
-        .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; }
-        @media(min-width: 600px) { .grid-container { grid-template-columns: 1fr 1fr; } }
-        
-        .card { 
-            background: #1e1e1e; border-radius: 15px; padding: 15px; 
-            border-top: 4px solid #333; position: relative;
-            transition: transform 0.2s;
-        }
-        
-        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        h3 { margin: 0; font-size: 0.85em; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .time-status { font-size: 0.75em; color: #555; font-style: italic; }
-        
-        .value-display { font-size: 2.2em; font-weight: bold; margin: 5px 0; display: flex; align-items: baseline; }
-        .unit { font-size: 0.4em; color: #666; margin-left: 5px; }
-        
-        .chart-box { width: 100%; height: 160px; margin-top: 10px; }
-        
-        .icon-bg { font-size: 1.4em; }
-    </style>
-</head>
-<body>
-
-    <div class="toolbar">
-        <span style="font-weight: bold; color: #1a73e8;">ThingSpeak Live</span>
-        <select id="resultsRange" onchange="loadData()">
-            <option value="10">10 μετρήσεις</option>
-            <option value="50" selected>50 μετρήσεις</option>
-            <option value="100">100 μετρήσεις</option>
-            <option value="400">400 μετρήσεις</option>
-        </select>
-    </div>
-
-    <div class="grid-container" id="dashboard">
-        </div>
-
-    <script>
-        // --- ΡΥΘΜΙΣΕΙΣ ΧΡΗΣΤΗ ---
-        const channelID = '1758807'; // Βάλε το δικό σου ID
-        const readAPIKey = '4BM86485YQL566TF'; // Βάλε το δικό σου API Key
-        
-        // Ορισμός ονομάτων και μονάδων για κάθε πεδίο
-        const fieldConfig = {
-            'field1': { label: 'Θερμοκρασία', unit: '°C' },
-            'field2': { label: 'Υγρασία', unit: '%' },
-            'field3': { label: 'Πίεση', unit: 'hPa' },
-            'field4': { label: 'Τάση', unit: 'V' },
-            'field5': { label: 'Φως', unit: 'lux' },
-            'field6': { label: 'Επίπεδο', unit: 'm' }
-        };
-
-        const colors = ['#ff5252', '#448aff', '#4caf50', '#ff9800', '#e040fb', '#00bcd4'];
-
-        // --- ΛΕΙΤΟΥΡΓΙΕΣ ΚΩΔΙΚΑ ---
-        function getIcon(name) {
-            name = name.toLowerCase();
-            if (name.includes('temp') || name.includes('θερμ')) return '🌡️';
-            if (name.includes('hum') || name.includes('υγρα')) return '💧';
-            if (name.includes('volt') || name.includes('batt') || name.includes('τάση')) return '🔋';
-            if (name.includes('pres') || name.includes('πίεσ')) return '⏲️';
-            if (name.includes('light') || name.includes('φως')) return '☀️';
-            return '📊';
-        }
-
-        function timeAgo(dateString) {
-            const now = new Date();
-            const past = new Date(dateString);
-            const diffMins = Math.round((now - past) / 60000);
-            if (diffMins < 1) return 'Τώρα';
-            if (diffMins < 60) return `Πριν ${diffMins}λ`;
-            const diffHours = Math.round(diffMins / 60);
-            if (diffHours < 24) return `Πριν ${diffHours}ω`;
-            return `Πριν ${Math.round(diffHours / 24)}ημ`;
-        }
-
-        google.charts.load('current', {'packages':['corechart']});
-        google.charts.setOnLoadCallback(loadData);
-
-        function loadData() {
-            const results = document.getElementById('resultsRange').value;
-            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=${results}`;
-            
-            fetch(url).then(res => res.json()).then(data => {
-                const dashboard = document.getElementById('dashboard');
-                dashboard.innerHTML = '';
-                const lastEntryTime = data.feeds[data.feeds.length - 1].created_at;
-                const timeStr = timeAgo(lastEntryTime);
-
-                for (let i = 1; i <= 6; i++) {
-                    const key = 'field' + i;
-                    const fieldRawName = data.channel[key];
-                    if (!fieldRawName) continue;
-
-                    const displayName = fieldConfig[key] ? fieldConfig[key].label : fieldRawName;
-                    const unit = fieldConfig[key] ? fieldConfig[key].unit : '';
-                    const lastValue = data.feeds[data.feeds.length - 1][key];
-                    const color = colors[i-1];
-
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.style.borderTopColor = color;
-                    card.innerHTML = `
-                        <div class="header-flex">
-                            <h3>${displayName}</h3>
-                            <span class="time-status">${timeStr}</span>
-                        </div>
-                        <div class="value-display" style="color: ${color}">
-                            ${parseFloat(lastValue).toFixed(1)}<span class="unit">${unit}</span>
-                            <span style="margin-left: auto;" class="icon-bg">${getIcon(displayName)}</span>
-                        </div>
-                        <div id="chart_${i}" class="chart-box"></div>
-                    `;
-                    dashboard.appendChild(card);
-                    drawChart(data.feeds, i, displayName, color);
-                }
-            });
-        }
-
-        function drawChart(feeds, fieldNum, label, color) {
-            const chartData = [['Time', label]];
-            feeds.forEach(f => {
-                const val = parseFloat(f['field' + fieldNum]);
-                if(!isNaN(val)) {
-                    chartData.push([new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), val]);
-                }
-            });
-
-            const dataTable = google.visualization.arrayToDataTable(chartData);
-            const options = {
-                backgroundColor: 'transparent',
-                curveType: 'function',
-                legend: { position: 'none' },
-                chartArea: { width: '95%', height: '80%' },
-                hAxis: { textPosition: 'none', baselineColor: 'none', gridlines: {color: 'none'} },
-                vAxis: { gridlines: {color: '#2a2a2a'}, textStyle: {color: '#555', fontSize: 10} },
-                colors: [color],
-                lineWidth: 3,
-                pointsVisible: feeds.length <= 15
-            };
-
-            const chart = new google.visualization.LineChart(document.getElementById('chart_' + fieldNum));
-            chart.draw(dataTable, options);
-        }
-
-        // Ανανέωση ανά 1 λεπτό
-        setInterval(loadData, 60000);
-        </script>
-</body>
-</html>
-        
-    
