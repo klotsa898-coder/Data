@@ -1,9 +1,9 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="el">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beekeeping Pro - Rounded Precision</title>
+    <title>Beekeeping Pro - Full Rounded</title>
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --accent: #1a73e8; --border: #333; }
@@ -45,9 +45,9 @@
     <div id="dashboard" class="grid-container"></div>
 
     <script>
-        const channelID = '1758807'; 
+        const channelID = '1758807; 
         const readAPIKey = '4BM86485YQL566TF';
-        const WEIGHT_ALERT_THRESHOLD = 0.4; 
+        const WEIGHT_ALERT_THRESHOLD = 0.4; // Παραμένει σε kg για τον έλεγχο
         
         let audioEnabled = false;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -68,7 +68,7 @@
         });
 
         const fieldConfig = {
-            'field1': { label: 'Βάρος', unit: 'kg', icon: '⚖️', color: '#ff5252', decimals: 3 },
+            'field1': { label: 'Βάρος', unit: 'gr', icon: '⚖️', color: '#ff5252', decimals: 0 },
             'field2': { label: 'Υγρασία', unit: '%', icon: '💧', color: '#448aff', decimals: 1 },
             'field3': { label: 'Θερμοκρασία', unit: '°C', icon: '🌡️', color: '#4caf50', decimals: 1 },
             'field4': { label: 'Μπαταρία', unit: 'V', icon: '🔋', color: '#ffc107', decimals: 2 },
@@ -95,9 +95,12 @@
                 const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
                 const entryToday = getWeightAt21(today);
                 const entryYesterday = getWeightAt21(yesterday);
-                const diff = (parseFloat(entryToday.field1) - parseFloat(entryYesterday.field1)).toFixed(3);
-                document.getElementById('24hYield').innerHTML = `${diff > 0 ? '+' : ''}${diff} <span style="font-size:0.4em">kg</span>`;
-                document.getElementById('24hYield').style.color = diff >= 0 ? '#4caf50' : '#ff5252';
+                
+                // Υπολογισμός διαφοράς 24ώρου (εδώ το μετατρέπουμε σε kg για το banner)
+                const diffKg = ((parseFloat(entryToday.field1) - parseFloat(entryYesterday.field1)) / 1000).toFixed(3);
+                
+                document.getElementById('24hYield').innerHTML = `${diffKg > 0 ? '+' : ''}${diffKg} <span style="font-size:0.4em">kg</span>`;
+                document.getElementById('24hYield').style.color = diffKg >= 0 ? '#4caf50' : '#ff5252';
                 document.getElementById('yieldDate').innerText = `Σύγκριση 21:00 χθες - 21:00 σήμερα`;
             } catch(e) { console.error(e); }
         }
@@ -119,6 +122,7 @@
                     const card = document.createElement('div');
                     card.className = 'card';
                     
+                    // Alert logic: αν η διαφορά (field5) ξεπεράσει το όριο kg
                     if (key === 'field5' && Math.abs(lastVal/1000) >= WEIGHT_ALERT_THRESHOLD) {
                         card.classList.add('alert-blink');
                         playAlertSound();
@@ -162,5 +166,4 @@
         setInterval(() => { loadData(); calculate24hYield(); }, 60000);
     </script>
 </body>
-    </html>
-    
+</html>
