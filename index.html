@@ -3,112 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#121212" id="nav-color">
-    <title>Telemetry Monitor</title>
+    <title>Beekeeping Pro - 24h Analysis</title>
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
-        :root {
-            --bg: #121212;
-            --card: #1e1e1e;
-            --text: #ffffff;
-            --subtext: #888;
-            --border: #333;
-            --chart-grid: #2a2a2a;
-        }
-
-        .light-theme {
-            --bg: #f4f7f6;
-            --card: #ffffff;
-            --text: #333333;
-            --subtext: #666;
-            --border: #ddd;
-            --chart-grid: #eee;
-        }
-
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; transition: 0.3s; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --accent: #1a73e8; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         
-        .toolbar { 
-            background: var(--card); padding: 12px 15px; border-radius: 12px; 
-            margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid var(--border);
+        .yield-banner { 
+            background: linear-gradient(135deg, #1e1e1e, #2d2d2d); 
+            padding: 20px; border-radius: 15px; margin-bottom: 20px; 
+            text-align: center; border: 1px solid #333;
         }
+        .yield-val { font-size: 2.5em; font-weight: bold; color: #4caf50; }
         
-        select, .theme-btn { 
-            background: var(--bg); color: var(--text); border: 1px solid var(--border); 
-            padding: 8px; border-radius: 8px; font-size: 14px; outline: none;
-        }
-
+        .toolbar { background: var(--card); padding: 10px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; }
         @media(min-width: 600px) { .grid-container { grid-template-columns: 1fr 1fr; } }
         
-        .card { 
-            background: var(--card); border-radius: 15px; padding: 15px; 
-            border-top: 5px solid #333; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        
-        .header-flex { display: flex; justify-content: space-between; align-items: center; }
-        h3 { margin: 0; font-size: 0.85em; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.5px; }
-        .time-status { font-size: 0.75em; color: var(--subtext); font-weight: normal; }
-        
-        .value-display { font-size: 2.2em; font-weight: bold; margin: 10px 0; display: flex; align-items: baseline; }
-        .unit { font-size: 0.45em; color: var(--subtext); margin-left: 5px; font-weight: normal; }
-        
-        .chart-box { width: 100%; height: 160px; margin-top: 5px; }
-        .icon-bg { font-size: 1.2em; }
+        .card { background: var(--card); border-radius: 15px; padding: 15px; border-top: 5px solid var(--accent); }
+        .value-display { font-size: 2.2em; font-weight: bold; }
+        .stats-row { display: flex; gap: 10px; font-size: 0.75em; color: #888; }
+        .chart-box, .gauge-box { width: 100%; height: 160px; }
+        select { background: #333; color: white; border: none; padding: 8px; border-radius: 5px; }
     </style>
 </head>
-<body id="body-tag">
+<body>
+
+    <div class="yield-banner">
+        <div style="font-size: 0.9em; color: #888;">ΔΙΑΦΟΡΑ 24Ω (21:00 - 21:00)</div>
+        <div id="24hYield" class="yield-val">Υπολογισμός...</div>
+        <div id="yieldDate" style="font-size: 0.7em; color: #555;">Αναμονή δεδομένων</div>
+    </div>
 
     <div class="toolbar">
-        <button class="theme-btn" onclick="toggleTheme()" id="theme-icon">☀️</button>
-        <div style="font-weight: bold; color: #1a73e8;">MY SYSTEM</div>
+        <span style="font-size: 0.8em;">Προβολή:</span>
         <select id="resultsRange" onchange="loadData()">
-            <option value="20" selected>20 μετρήσεις</option>
-            <option value="100">100 μετρήσεις</option>
-            <option value="400">400 μετρήσεις</option>
+            <option value="5">Τελευταίες 5</option>
+            <option value="15" selected>Τελευταίες 15</option>
+            <option value="30">Τελευταίες 30</option>
         </select>
     </div>
 
-    <div class="grid-container" id="dashboard"></div>
+    <div id="dashboard" class="grid-container"></div>
 
     <script>
-        // --- ΡΥΘΜΙΣΕΙΣ ΧΡΗΣΤΗ ---
-        const channelID = '1758807'; 
+        const channelID = '1758807';
         const readAPIKey = '4BM86485YQL566TF';
-        
-        // Η δική σου παραμετροποίηση πεδίων
+
         const fieldConfig = {
-            'field1': { label: 'Βάρος', unit: 'kg', icon: '⚖️' },
-            'field2': { label: 'Υγρασία', unit: '%', icon: '💧' },
-            'field3': { label: 'Θερμοκρασία', unit: '°C', icon: '🌡️' },
-            'field4': { label: 'Μπαταρία', unit: 'V', icon: '🔋' },
-            'field5': { label: 'Διαφορά Βάρους', unit: 'kg', icon: '📉' },
-            'field6': { label: 'GSM Signal', unit: 'dBm', icon: '📶' }
+            'field1': { label: 'Βάρος', unit: 'kg', type: 'line', color: '#ff5252' },
+            'field2': { label: 'Υγρασία', unit: '%', type: 'line', color: '#448aff' },
+            'field3': { label: 'Θερμοκρασία', unit: '°C', type: 'line', color: '#4caf50' },
+            'field4': { label: 'Μπαταρία', unit: 'V', type: 'gauge', min: 10, max: 14, red: 11.5, yellow: 12.2 },
+            'field5': { label: 'Διαφορά', unit: 'kg', type: 'line', color: '#ff4081' },
+            'field6': { label: 'GSM Signal', unit: 'dBm', type: 'gauge', min: -120, max: -40, red: -110, yellow: -90 }
         };
 
-        const colors = ['#ff5252', '#448aff', '#4caf50', '#ffc107', '#ff4081', '#00bcd4'];
-
-        function toggleTheme() {
-            const body = document.getElementById('body-tag');
-            const btn = document.getElementById('theme-icon');
-            const metaTheme = document.getElementById('nav-color');
-            body.classList.toggle('light-theme');
-            const isLight = body.classList.contains('light-theme');
-            btn.innerText = isLight ? '🌙' : '☀️';
-            metaTheme.setAttribute('content', isLight ? '#f4f7f6' : '#121212');
+        google.charts.load('current', {'packages':['corechart', 'gauge']});
+        google.charts.setOnLoadCallback(() => {
             loadData();
-        }
+            calculate24hYield();
+        });
 
-        function timeAgo(dateString) {
-            const diffMins = Math.round((new Date() - new Date(dateString)) / 60000);
-            if (diffMins < 1) return 'Τώρα';
-            if (diffMins < 60) return `Πριν ${diffMins}λ`;
-            const diffHours = Math.round(diffMins / 60);
-            return diffHours < 24 ? `Πριν ${diffHours}ω` : `Πριν ${Math.round(diffHours/24)}ημ`;
-        }
+        async function calculate24hYield() {
+            try {
+                // Φέρνουμε δεδομένα των τελευταίων 2 ημερών
+                const res = await fetch(`https://api.thingspeak.com/channels/${channelID}/fields/1.json?api_key=${readAPIKey}&results=200`);
+                const data = await res.json();
+                const feeds = data.feeds;
 
-        google.charts.load('current', {'packages':['corechart']});
-        google.charts.setOnLoadCallback(loadData);
+                // Βρίσκουμε την πιο κοντινή μέτρηση στις 21:00 χθες και σήμερα
+                const getWeightAt21 = (targetDate) => {
+                    const target = new Date(targetDate);
+                    target.setHours(21, 0, 0);
+                    return feeds.reduce((prev, curr) => {
+                        return Math.abs(new Date(curr.created_at) - target) < Math.abs(new Date(prev.created_at) - target) ? curr : prev;
+                    });
+                };
+
+                const today = new Date();
+                const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+
+                const entryToday = getWeightAt21(today);
+                const entryYesterday = getWeightAt21(yesterday);
+
+                const diff = (parseFloat(entryToday.field1) - parseFloat(entryYesterday.field1)).toFixed(2);
+                const color = diff >= 0 ? '#4caf50' : '#ff5252';
+                
+                document.getElementById('24hYield').innerHTML = `${diff > 0 ? '+' : ''}${diff} <span style="font-size:0.4em">kg</span>`;
+                document.getElementById('24hYield').style.color = color;
+                document.getElementById('yieldDate').innerText = `Σύγκριση: ${new Date(entryYesterday.created_at).toLocaleString()} με ${new Date(entryToday.created_at).toLocaleString()}`;
+            } catch(e) {
+                document.getElementById('24hYield').innerText = "--";
+            }
+        }
 
         function loadData() {
             const results = document.getElementById('resultsRange').value;
@@ -116,60 +104,41 @@
             .then(res => res.json()).then(data => {
                 const dashboard = document.getElementById('dashboard');
                 dashboard.innerHTML = '';
-                const isLight = document.getElementById('body-tag').classList.contains('light-theme');
-                const gridColor = isLight ? '#eee' : '#2a2a2a';
-                const textCol = isLight ? '#999' : '#555';
 
                 for (let i = 1; i <= 6; i++) {
                     const key = 'field' + i;
                     if (!data.channel[key]) continue;
-
+                    const feeds = data.feeds.map(f => parseFloat(f[key])).filter(v => !isNaN(v));
+                    const lastVal = feeds[feeds.length - 1];
                     const conf = fieldConfig[key];
-                    const lastValue = data.feeds[data.feeds.length - 1][key];
-                    const color = colors[i-1];
 
                     const card = document.createElement('div');
                     card.className = 'card';
-                    card.style.borderTopColor = color;
                     card.innerHTML = `
-                        <div class="header-flex">
-                            <h3>${conf.label}</h3>
-                            <span class="time-status">${timeAgo(data.feeds[data.feeds.length-1].created_at)}</span>
-                        </div>
-                        <div class="value-display" style="color: ${color}">
-                            ${parseFloat(lastValue).toFixed(2)}<span class="unit">${conf.unit}</span>
-                            <span style="margin-left: auto;" class="icon-bg">${conf.icon}</span>
-                        </div>
-                        <div id="chart_${i}" class="chart-box"></div>
+                        <h3>${conf.label}</h3>
+                        <div class="value-display" style="color:${conf.color || '#fff'}">${lastVal.toFixed(2)}<span style="font-size:0.4em; color:#666;">${conf.unit}</span></div>
+                        <div id="viz_${i}" class="${conf.type === 'gauge' ? 'gauge-box' : 'chart-box'}"></div>
                     `;
                     dashboard.appendChild(card);
-                    drawChart(data.feeds, i, conf.label, color, gridColor, textCol);
+
+                    if (conf.type === 'gauge') {
+                        drawGauge(i, lastVal, conf);
+                    } else {
+                        drawChart(data.feeds, i, conf.label, conf.color);
+                    }
                 }
             });
         }
 
-        function drawChart(feeds, fieldNum, label, color, gridCol, textCol) {
-            const chartData = [['Time', label]];
-            feeds.forEach(f => {
-                const val = parseFloat(f['field' + fieldNum]);
-                if(!isNaN(val)) chartData.push([new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), val]);
-            });
-
-            const options = {
-                backgroundColor: 'transparent',
-                curveType: 'function',
-                legend: { position: 'none' },
-                chartArea: { width: '95%', height: '80%' },
-                hAxis: { textPosition: 'none', baselineColor: 'none', gridlines: {color: 'none'} },
-                vAxis: { gridlines: {color: gridCol}, textStyle: {color: textCol, fontSize: 10} },
-                colors: [color],
-                lineWidth: 3,
-                pointsVisible: feeds.length <= 20
-            };
-            new google.visualization.LineChart(document.getElementById('chart_' + fieldNum)).draw(google.visualization.arrayToDataTable(chartData), options);
+        function drawGauge(id, val, conf) {
+            new google.visualization.Gauge(document.getElementById('viz_' + id)).draw(google.visualization.arrayToDataTable([['Label', 'Value'], ['', val]]), { min: conf.min, max: conf.max, redFrom: conf.min, redTo: conf.red, yellowFrom: conf.red, yellowTo: conf.yellow, greenFrom: conf.yellow, greenTo: conf.max, minorTicks: 5 });
         }
 
-        setInterval(loadData, 60000);
+        function drawChart(feeds, i, label, color) {
+            new google.visualization.LineChart(document.getElementById('viz_'+i)).draw(google.visualization.arrayToDataTable([['Time', label], ...feeds.map(f => [new Date(f.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), parseFloat(f['field'+i])])]), { backgroundColor: 'transparent', curveType: 'function', legend: 'none', hAxis: {textPosition: 'none'}, vAxis: {gridlines: {color:'#333'}}, colors: [color], chartArea: {width:'95%', height:'80%'} });
+        }
+
+        setInterval(() => { loadData(); calculate24hYield(); }, 60000);
     </script>
 </body>
 </html>
