@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beekeeping Smart Monitor</title>
+    <title>Beekeeping Pro Ultimate Monitor</title>
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --accent: #1a73e8; --border: #333; }
@@ -40,7 +40,7 @@
     <div class="yield-banner">
         <div style="font-size: 0.8em; color: #888; margin-bottom: 5px;">ΔΙΑΦΟΡΑ 24Ω (21:00 - 21:00)</div>
         <div id="24hYield" class="yield-val">--</div>
-        <div id="yieldDate" style="font-size: 0.65em; color: #555; margin-top: 5px;">Φόρτωση...</div>
+        <div id="yieldDate" style="font-size: 0.65em; color: #555; margin-top: 5px;">Φόρτωση δεδομένων...</div>
     </div>
 
     <div class="toolbar">
@@ -55,9 +55,10 @@
     <div id="dashboard" class="grid-container"></div>
 
     <script>
-        const channelID = '1758807';
+        // --- ΡΥΘΜΙΣΕΙΣ ΧΡΗΣΤΗ ---
+        const channelID =  '1758807'; 
         const readAPIKey = '4BM86485YQL566TF';
-        const WEIGHT_ALERT_THRESHOLD = 0.4;
+        const WEIGHT_ALERT_THRESHOLD = 0.4; // σε kg
         
         let audioEnabled = false;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -82,7 +83,7 @@
             'field2': { label: 'Υγρασία', unit: '%', icon: '💧', color: '#448aff' },
             'field3': { label: 'Θερμοκρασία', unit: '°C', icon: '🌡️', color: '#4caf50' },
             'field4': { label: 'Μπαταρία', unit: 'V', icon: '🔋', color: '#ffc107' },
-            'field5': { label: 'Διαφορά', unit: 'kg', icon: '📉', color: '#ff4081' },
+            'field5': { label: 'Διαφορά', unit: 'gr', icon: '📉', color: '#ff4081', multiply: 1000 },
             'field6': { label: 'GSM Signal', unit: 'dBm', icon: '📶', color: '#00bcd4' }
         };
 
@@ -111,7 +112,7 @@
                 const diff = (parseFloat(entryToday.field1) - parseFloat(entryYesterday.field1)).toFixed(2);
                 document.getElementById('24hYield').innerHTML = `${diff > 0 ? '+' : ''}${diff} <span style="font-size:0.4em">kg</span>`;
                 document.getElementById('24hYield').style.color = diff >= 0 ? '#4caf50' : '#ff5252';
-                document.getElementById('yieldDate').innerText = `Από ${new Date(entryYesterday.created_at).getHours()}:00 χθες έως ${new Date(entryToday.created_at).getHours()}:00 σήμερα`;
+                document.getElementById('yieldDate').innerText = `Σύγκριση από 21:00 χθες έως 21:00 σήμερα`;
             } catch(e) { console.error(e); }
         }
 
@@ -126,15 +127,21 @@
                     const key = 'field' + i;
                     if (!data.channel[key]) continue;
                     
-                    const feeds = data.feeds.map(f => parseFloat(f[key])).filter(v => !isNaN(v));
+                    const conf = fieldConfig[key];
+                    const feeds = data.feeds.map(f => {
+                        let val = parseFloat(f[key]);
+                        return conf.multiply ? val * conf.multiply : val;
+                    }).filter(v => !isNaN(v));
+
                     const lastVal = feeds[feeds.length - 1];
                     const maxVal = Math.max(...feeds);
                     const minVal = Math.min(...feeds);
-                    const conf = fieldConfig[key];
 
                     const card = document.createElement('div');
                     card.className = 'card';
-                    if (key === 'field5' && Math.abs(lastVal) >= WEIGHT_ALERT_THRESHOLD) {
+                    
+                    let alertCheck = parseFloat(data.feeds[data.feeds.length - 1][key]);
+                    if (key === 'field5' && Math.abs(alertCheck) >= WEIGHT_ALERT_THRESHOLD) {
                         card.classList.add('alert-blink');
                         playAlertSound();
                     }
@@ -145,39 +152,43 @@
                             <span class="icon-box">${conf.icon}</span>
                         </div>
                         <div class="value-display" style="color:${conf.color}">
-                            ${lastVal.toFixed(2)}<span style="font-size:0.4em; color:#666; margin-left:5px;">${conf.unit}</span>
+                            ${conf.unit === 'gr' ? Math.round(lastVal) : lastVal.toFixed(2)}<span style="font-size:0.4em; color:#666; margin-left:5px;">${conf.unit}</span>
                         </div>
                         <div class="stats-row">
-                            <span>MIN: ${minVal.toFixed(2)}</span>
-                            <span>MAX: ${maxVal.toFixed(2)}</span>
+                            <span>MIN: ${conf.unit === 'gr' ? Math.round(minVal) : minVal.toFixed(2)}</span>
+                            <span>MAX: ${conf.unit === 'gr' ? Math.round(maxVal) : maxVal.toFixed(2)}</span>
                         </div>
                         <div id="chart_${i}" class="chart-box"></div>
                     `;
                     dashboard.appendChild(card);
-                    drawChart(data.feeds, i, conf.label, conf.color);
+                    drawChart(data.feeds, i, conf.label, conf.color, conf.multiply);
                 }
             });
         }
 
-        function drawChart(feeds, i, label, color) {
+        function drawChart(feeds, i, label, color, multiply) {
             const dataTable = new google.visualization.DataTable();
             dataTable.addColumn('string', 'Time');
             dataTable.addColumn('number', label);
             feeds.forEach(f => {
-                const val = parseFloat(f['field' + i]);
-                if (!isNaN(val)) dataTable.addRow([new Date(f.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), val]);
+                let val = parseFloat(f['field' + i]);
+                if (!isNaN(val)) {
+                    val = multiply ? val * multiply : val;
+                    dataTable.addRow([new Date(f.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), val]);
+                }
             });
 
             new google.visualization.LineChart(document.getElementById('chart_'+i)).draw(dataTable, {
                 backgroundColor: 'transparent', curveType: 'function', legend: 'none',
                 hAxis: { textPosition: 'none', baselineColor: 'none', gridlines: {color:'none'} },
                 vAxis: { gridlines: {color:'#2a2a2a'}, textStyle: {color:'#555', fontSize: 10} },
-                colors: [color], lineWidth: 3, chartArea: {width:'95%', height:'85%'}
+                colors: [color], lineWidth: 3, 
+                pointsVisible: true, pointSize: 6,
+                chartArea: {width:'95%', height:'85%'}
             });
         }
 
         setInterval(() => { loadData(); calculate24hYield(); }, 60000);
     </script>
 </body>
-    </html>
-    
+</html>
