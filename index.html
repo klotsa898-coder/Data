@@ -8,24 +8,16 @@
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --accent: #1a73e8; --border: #333; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        
         .yield-banner { background: linear-gradient(135deg, #1e1e1e, #2d2d2d); padding: 20px; border-radius: 15px; margin-bottom: 10px; text-align: center; border: 1px solid var(--border); }
         .yield-val { font-size: 2.5em; font-weight: bold; }
-        
-        /* Το πλαίσιο για την Ημερομηνία/Ώρα */
         .last-update { font-size: 0.8em; color: #ffca28; text-align: center; margin-bottom: 15px; background: #252525; padding: 10px; border-radius: 10px; border: 1px solid #444; font-weight: 500; }
-        
-        .toolbar { background: var(--card); padding: 10px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
         .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; }
         @media(min-width: 600px) { .grid-container { grid-template-columns: 1fr 1fr; } }
-        
         .card { background: var(--card); border-radius: 15px; padding: 15px; border-top: 5px solid var(--accent); position: relative; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; }
         h3 { margin: 0; font-size: 0.85em; color: #888; text-transform: uppercase; }
         .value-display { font-size: 2.2em; font-weight: bold; margin: 5px 0; display: flex; align-items: baseline; }
-        .chart-box { width: 100%; height: 150px; }
-        
-        select { background: #333; color: white; border: none; padding: 8px; border-radius: 8px; font-size: 11px; }
+        .chart-box { width: 100%; height: 140px; }
     </style>
 </head>
 <body>
@@ -35,18 +27,7 @@
         <div id="24hYield" class="yield-val">--</div>
     </div>
 
-    <div class="last-update" id="mainUpdate">
-        🕒 Αναμονή δεδομένων...
-    </div>
-
-    <div class="toolbar">
-        <div style="font-size: 11px; color: #888;">Ιστορικό:</div>
-        <select id="resultsRange" onchange="loadData()">
-            <option value="10">10 μετρήσεις</option>
-            <option value="20" selected>20 μετρήσεις</option>
-            <option value="50">50 μετρήσεις</option>
-        </select>
-    </div>
+    <div class="last-update" id="mainUpdate">🕒 Αναμονή δεδομένων...</div>
 
     <div id="dashboard" class="grid-container"></div>
 
@@ -54,12 +35,14 @@
         const channelID = '1758807'; 
         const readAPIKey = '4BM86485YQL566TF';
 
+        // Προσθήκη του Field 6 για το GSM Signal
         const fieldConfig = {
             'field1': { label: 'Βάρος', unit: 'gr', icon: '⚖️', color: '#ff5252', decimals: 0 },
             'field2': { label: 'Υγρασία', unit: '%', icon: '💧', color: '#448aff', decimals: 1 },
             'field3': { label: 'Θερμοκρασία', unit: '°C', icon: '🌡️', color: '#4caf50', decimals: 1 },
             'field4': { label: 'Μπαταρία', unit: 'V', icon: '🔋', color: '#ffc107', decimals: 2 },
-            'field5': { label: 'Διαφορά', unit: 'gr', icon: '📉', color: '#ff4081', decimals: 0 }
+            'field5': { label: 'Διαφορά', unit: 'gr', icon: '📉', color: '#ff4081', decimals: 0 },
+            'field6': { label: 'GSM Signal', unit: 'dBm', icon: '📶', color: '#00bcd4', decimals: 0 }
         };
 
         google.charts.load('current', {'packages':['corechart']});
@@ -77,9 +60,8 @@
                         Math.abs(new Date(curr.created_at) - target) < Math.abs(new Date(prev.created_at) - target) ? curr : prev
                     );
                 };
-                const today = new Date();
-                const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
-                const valToday = parseFloat(getWeightAt21(today).field1);
+                const valToday = parseFloat(getWeightAt21(new Date()).field1);
+                const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
                 const valYesterday = parseFloat(getWeightAt21(yesterday).field1);
                 
                 const diffKg = ((valToday - valYesterday) / 1000).toFixed(2);
@@ -90,17 +72,13 @@
         }
 
         function loadData() {
-            const results = document.getElementById('resultsRange').value;
-            fetch(`https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=${results}`)
+            fetch(`https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=20`)
             .then(res => res.json()).then(data => {
-                if(!data.feeds.length) return;
+                if(!data.feeds || !data.feeds.length) return;
                 const lastFeed = data.feeds[data.feeds.length - 1];
                 
-                // Ενημέρωση Ώρας/Ημερομηνίας
                 const lastDate = new Date(lastFeed.created_at);
-                const formattedDate = lastDate.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const formattedTime = lastDate.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' });
-                document.getElementById('mainUpdate').innerText = `🕒 Τελευταία μέτρηση: ${formattedDate} | ${formattedTime}`;
+                document.getElementById('mainUpdate').innerText = `🕒 Τελευταία μέτρηση: ${lastDate.toLocaleDateString('el-GR')} | ${lastDate.toLocaleTimeString('el-GR', {hour:'2-digit', minute:'2-digit'})}`;
 
                 const dashboard = document.getElementById('dashboard');
                 dashboard.innerHTML = '';
